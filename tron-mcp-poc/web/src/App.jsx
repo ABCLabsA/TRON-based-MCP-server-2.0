@@ -16,6 +16,12 @@ export default function App() {
   const [summary, setSummary] = useState("");
   const [result, setResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
+  const addressHint = "请先输入 Address";
+  const txidHint = "请先输入 Txid";
+  const disableAddressActions = status === "loading" || !address;
+  const disableTxidAction = status === "loading" || !txid;
+  const showAddressHint = !address;
+  const showTxidHint = !txid;
 
   async function fetchJson(path, options) {
     const res = await fetch(`${base}${path}`, options);
@@ -90,58 +96,109 @@ export default function App() {
   }
 
   return (
-    <div style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace", padding: 24, maxWidth: 900, margin: "0 auto" }}>
-      <h1>TRON MCP Demo Console</h1>
-      <p>API Base: {base || "(use Vite proxy / relative)"}</p>
+    <div className="app">
+      <div className="orb orb-1" />
+      <div className="orb orb-2" />
 
-      <div style={{ display: "grid", gap: 12, marginTop: 16 }}>
-        <label>
-          Address
+      <header className="hero">
+        <h1 className="hero-title">TRON MCP Demo Console</h1>
+        <p className="hero-sub">
+          A focused command surface for probing TRON network status, balances, and transaction health. Keep
+          requests tight, inspect structured responses, iterate fast.
+        </p>
+        <div className="status-row">
+          <div className="pill">
+            <span className="label">API Base</span>
+            <strong>{base || "(use Vite proxy / relative)"}</strong>
+          </div>
+          <div className="pill">
+            <span className="label">Tools</span>
+            <strong>{tools.length || 0}</strong>
+          </div>
+          <div className="pill">
+            <span className="label">Status</span>
+            <strong>{status}</strong>
+          </div>
+        </div>
+      </header>
+
+      <section className="grid two">
+        <div className="panel">
+          <h3 className="panel-title">Wallet Address</h3>
+          <label className="label" htmlFor="address-input">
+            Address
+          </label>
           <input
+            id="address-input"
+            className="input"
             value={address}
             onChange={(e) => setAddress(e.target.value.trim())}
             placeholder="T..."
-            style={{ display: "block", width: "100%", padding: 8, marginTop: 6 }}
           />
-        </label>
-        <label>
-          Txid
+        </div>
+        <div className="panel">
+          <h3 className="panel-title">Transaction ID</h3>
+          <label className="label" htmlFor="txid-input">
+            Txid
+          </label>
           <input
+            id="txid-input"
+            className="input"
             value={txid}
             onChange={(e) => setTxid(e.target.value.trim())}
             placeholder="64 hex chars"
-            style={{ display: "block", width: "100%", padding: 8, marginTop: 6 }}
           />
-        </label>
-      </div>
+        </div>
+      </section>
 
-      <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
-        <button onClick={onNetworkStatus} disabled={status === "loading"} style={{ padding: "8px 12px" }}>
-          Network Status
-        </button>
-        <button onClick={onUsdtBalance} disabled={status === "loading"} style={{ padding: "8px 12px" }}>
-          USDT Balance
-        </button>
-        <button onClick={onTxStatus} disabled={status === "loading"} style={{ padding: "8px 12px" }}>
-          Tx Status
-        </button>
-      </div>
+      <section className="panel" style={{ marginTop: 18 }}>
+        <h3 className="panel-title">Actions</h3>
+        <div className="actions">
+          <span className="hint-wrap" data-tooltip={showAddressHint ? addressHint : ""}>
+            <button
+              onClick={onNetworkStatus}
+              disabled={disableAddressActions}
+              className="btn primary"
+              style={{ pointerEvents: disableAddressActions ? "none" : "auto" }}
+            >
+              Network Status
+            </button>
+          </span>
+          <span className="hint-wrap" data-tooltip={showAddressHint ? addressHint : ""}>
+            <button
+              onClick={onUsdtBalance}
+              disabled={disableAddressActions}
+              className="btn secondary"
+              style={{ pointerEvents: disableAddressActions ? "none" : "auto" }}
+            >
+              USDT Balance
+            </button>
+          </span>
+          <span className="hint-wrap" data-tooltip={showTxidHint ? txidHint : ""}>
+            <button
+              onClick={onTxStatus}
+              disabled={disableTxidAction}
+              className="btn ghost"
+              style={{ pointerEvents: disableTxidAction ? "none" : "auto" }}
+            >
+              Tx Status
+            </button>
+          </span>
+        </div>
+      </section>
 
-      <div style={{ marginTop: 20 }}>
-        {status === "loading" && <div>Loading...</div>}
-        {errorMsg && <div style={{ color: "#b00020" }}>Error: {errorMsg}</div>}
-        {summary && <div style={{ fontWeight: 600, marginTop: 8 }}>{summary}</div>}
-        <pre style={{ background: "#f6f6f6", padding: 12, marginTop: 8, minHeight: 120 }}>
-          {result ? JSON.stringify(result, null, 2) : "(no result)"}
-        </pre>
-      </div>
+      <section className="panel" style={{ marginTop: 18 }}>
+        <h3 className="panel-title">Response</h3>
+        {status === "loading" && <div className="loading">Running request</div>}
+        {errorMsg && <div className="error">Error: {errorMsg}</div>}
+        {summary && <div className="summary">{summary}</div>}
+        <pre className="result">{result ? JSON.stringify(result, null, 2) : "(no result)"}</pre>
+      </section>
 
-      <div style={{ marginTop: 24 }}>
-        <h3>Tools (from /tools)</h3>
-        <pre style={{ background: "#f6f6f6", padding: 12 }}>
-          {tools.length ? JSON.stringify(tools, null, 2) : "(no tools loaded)"}
-        </pre>
-      </div>
+      <section className="panel" style={{ marginTop: 18 }}>
+        <h3 className="panel-title">Tools (from /tools)</h3>
+        <div className="tools">{tools.length ? JSON.stringify(tools, null, 2) : "(no tools loaded)"}</div>
+      </section>
     </div>
   );
 }
