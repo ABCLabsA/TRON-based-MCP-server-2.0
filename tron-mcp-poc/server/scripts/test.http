@@ -1,0 +1,32 @@
+﻿### Health
+GET http://localhost:8787/health
+
+### Tools
+GET http://localhost:8787/tools
+
+### Call: get_network_status
+POST http://localhost:8787/call
+Content-Type: application/json
+
+{
+  "tool": "get_network_status",
+  "args": {}
+}
+
+### Call: get_usdt_balance
+POST http://localhost:8787/call
+Content-Type: application/json
+
+{
+  "tool": "get_usdt_balance",
+  "args": { "address": "TQ9d1eZkS4s2a9x1YQ9d1eZkS4s2a9x1YQ" }
+}
+
+### Call: get_tx_status
+POST http://localhost:8787/call
+Content-Type: application/json
+
+{
+  "tool": "get_tx_status",
+  "args": { "txid": "a3b7f0b8c1f5e9d3a3b7f0b8c1f5e9d3a3b7f0b8c1f5e9d3a3b7f0b8c1f5e9d3" }
+}

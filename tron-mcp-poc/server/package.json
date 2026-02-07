@@ -1,0 +1,19 @@
+﻿{
+  "name": "tron-mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "node src/index.js",
+    "start": "node src/index.js",
+    "mcp:stdio": "node src/index.js --stdio",
+    "mcp:test": "node scripts/mcp-smoke-test.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "dotenv": "^16.4.5"
+  }
+}

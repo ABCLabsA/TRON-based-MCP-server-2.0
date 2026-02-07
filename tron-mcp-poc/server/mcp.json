@@ -1,0 +1,15 @@
+﻿{
+  "mcpServers": {
+    "tron-mcp-server": {
+      "command": "node",
+      "args": [
+        "C:\\path\\to\\tron-mcp-poc\\server\\src\\index.js",
+        "--stdio"
+      ],
+      "env": {
+        "NODE_ENV": "development",
+        "TRONGRID_API_KEY": "YOUR_TRONGRID_API_KEY"
+      }
+    }
+  }
+}
