@@ -11,18 +11,6 @@ import {
   toHexAddress,
 } from "./providers/trongrid.js";
 import { startMcpServer } from "./mcp.js";
-import cors from "cors";
-app.use(
-  cors({
-    origin: [
-      "https://tron-based-mcp-server-t37p.vercel.app/",
-      "http://localhost:5173",
-    ],
-    methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  }),
-);
-app.options("*", cors());
 
 const DEFAULT_HTTP_PORT = 8787;
 const PORT = Number(process.env.PORT || DEFAULT_HTTP_PORT);
