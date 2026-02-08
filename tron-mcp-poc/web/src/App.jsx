@@ -10,7 +10,8 @@ function formatToolName(name) {
 
 export default function App() {
   const base = useMemo(() => {
-    const v = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE;
+    const v =
+      import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE;
     return v ? v.replace(/\/$/, "") : "";
   }, []);
 
@@ -43,6 +44,8 @@ export default function App() {
     try {
       const data = await fetchJson("/tools");
       setTools(Array.isArray(data?.tools) ? data.tools : []);
+      console.log("base =", base);
+      console.log("env =", import.meta.env.VITE_API_BASE_URL);
     } catch {
       setTools([]);
     }
@@ -65,7 +68,7 @@ export default function App() {
       const data = await fetchJson("/call", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tool, args })
+        body: JSON.stringify({ tool, args }),
       });
       setSummary(data?.summary?.zh || "");
       setResult(data);
@@ -124,8 +127,9 @@ export default function App() {
       <header className="hero">
         <h1 className="hero-title">TRON MCP Demo Console</h1>
         <p className="hero-sub">
-          A focused command surface for probing TRON network status, balances, and transaction health. Keep
-          requests tight, inspect structured responses, iterate fast.
+          A focused command surface for probing TRON network status, balances,
+          and transaction health. Keep requests tight, inspect structured
+          responses, iterate fast.
         </p>
         <div className="status-row">
           <div className="pill">
@@ -185,7 +189,10 @@ export default function App() {
               Network Status
             </button>
           </span>
-          <span className="hint-wrap" data-tooltip={showAddressHint ? addressHint : ""}>
+          <span
+            className="hint-wrap"
+            data-tooltip={showAddressHint ? addressHint : ""}
+          >
             <button
               onClick={onUsdtBalance}
               disabled={disableAddressActions}
@@ -195,7 +202,10 @@ export default function App() {
               USDT Balance
             </button>
           </span>
-          <span className="hint-wrap" data-tooltip={showAddressHint ? addressHint : ""}>
+          <span
+            className="hint-wrap"
+            data-tooltip={showAddressHint ? addressHint : ""}
+          >
             <button
               onClick={onAccountProfile}
               disabled={disableAddressActions}
@@ -205,7 +215,10 @@ export default function App() {
               Account Profile
             </button>
           </span>
-          <span className="hint-wrap" data-tooltip={showTxidHint ? txidHint : ""}>
+          <span
+            className="hint-wrap"
+            data-tooltip={showTxidHint ? txidHint : ""}
+          >
             <button
               onClick={onTxStatus}
               disabled={disableTxidAction}
@@ -223,7 +236,9 @@ export default function App() {
         {status === "loading" && <div className="loading">Running request</div>}
         {errorMsg && <div className="error">Error: {errorMsg}</div>}
         {summary && <div className="summary">{summary}</div>}
-        <pre className="result">{result ? JSON.stringify(result, null, 2) : "(no result)"}</pre>
+        <pre className="result">
+          {result ? JSON.stringify(result, null, 2) : "(no result)"}
+        </pre>
       </section>
 
       {addressMeta && (
@@ -232,7 +247,9 @@ export default function App() {
           <div className="safety-grid">
             <div className="safety-card">
               <div className="label">Base58 Valid</div>
-              <div className="value">{addressMeta.base58Valid ? "YES" : "NO"}</div>
+              <div className="value">
+                {addressMeta.base58Valid ? "YES" : "NO"}
+              </div>
             </div>
             <div className="safety-card">
               <div className="label">Network</div>
@@ -240,11 +257,12 @@ export default function App() {
             </div>
             <div className="safety-card">
               <div className="label">Address Hex</div>
-              <div className="value mono clamp">
-                {showHex ? hex : shortHex}
-              </div>
+              <div className="value mono clamp">{showHex ? hex : shortHex}</div>
               {hex && (
-                <button className="link-btn" onClick={() => setShowHex((v) => !v)}>
+                <button
+                  className="link-btn"
+                  onClick={() => setShowHex((v) => !v)}
+                >
                   {showHex ? "收起" : "展开"}
                 </button>
               )}
@@ -305,12 +323,16 @@ export default function App() {
         <div className="tools-header">
           <div>
             <h3 className="panel-title">Tools</h3>
-            <p className="tools-sub">Loaded from <code>/tools</code>. Click a tool to copy its name.</p>
+            <p className="tools-sub">
+              Loaded from <code>/tools</code>. Click a tool to copy its name.
+            </p>
           </div>
           <span className="tools-count">{tools.length} tools</span>
         </div>
         <div className="tools-grid">
-          {tools.length === 0 && <div className="tools-empty">(no tools loaded)</div>}
+          {tools.length === 0 && (
+            <div className="tools-empty">(no tools loaded)</div>
+          )}
           {tools.map((tool) => (
             <button
               key={tool.name}
@@ -322,7 +344,11 @@ export default function App() {
               <div className="tool-desc">{tool.description || "-"}</div>
               <div className="tool-tags">
                 <span>JSON Schema</span>
-                <span>{tool.inputSchema?.required?.length ? `${tool.inputSchema.required.length} req` : "0 req"}</span>
+                <span>
+                  {tool.inputSchema?.required?.length
+                    ? `${tool.inputSchema.required.length} req`
+                    : "0 req"}
+                </span>
               </div>
             </button>
           ))}

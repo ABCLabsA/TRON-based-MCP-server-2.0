@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/tools",
+      "destination": "https://tron-based-mcp-server-production.up.railway.app/tools"
+    },
+    {
+      "source": "/call",
+      "destination": "https://tron-based-mcp-server-production.up.railway.app/call"
+    }
+  ]
+}
