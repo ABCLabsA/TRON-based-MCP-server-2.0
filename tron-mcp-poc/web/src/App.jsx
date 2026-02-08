@@ -10,7 +10,7 @@ function formatToolName(name) {
 
 export default function App() {
   const base = useMemo(() => {
-    const v = import.meta.env.VITE_API_BASE;
+    const v = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE;
     return v ? v.replace(/\/$/, "") : "";
   }, []);
 
