@@ -2,11 +2,11 @@
   "rewrites": [
     {
       "source": "/tools",
-      "destination": "https://tron-based-mcp-server-production.up.railway.app/tools"
+      "destination": "https://agile-wholeness-production.up.railway.app/tools"
     },
     {
       "source": "/call",
-      "destination": "https://tron-based-mcp-server-production.up.railway.app/call"
+      "destination": "https://agile-wholeness-production.up.railway.app/call"
     }
   ]
 }
