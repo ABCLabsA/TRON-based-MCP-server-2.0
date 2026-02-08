@@ -28,7 +28,8 @@ async function run() {
     "get_usdt_balance",
     "get_tx_status",
     "get_account_profile",
-    "verify_unsigned_tx"
+    "verify_unsigned_tx",
+    "create_unsigned_transfer"
   ];
   for (const name of expected) {
     assert.ok(names.includes(name), `missing tool: ${name}`);

@@ -36,6 +36,7 @@ async function run() {
       "get_tx_status",
       "get_account_profile",
       "verify_unsigned_tx",
+      "create_unsigned_transfer",
     ];
     const missing = expectedTools.filter((name) => !toolNames.includes(name));
     if (missing.length) {
@@ -97,6 +98,17 @@ async function run() {
     });
     console.log("verify_unsigned_tx:");
     console.log(JSON.stringify(verifyUnsigned, null, 2));
+
+    const unsignedTransfer = await client.callTool({
+      name: "create_unsigned_transfer",
+      arguments: {
+        from: "TB3Ttmeh5bgesBmMSqRSjpSmBsufKNgjAN",
+        to: "TDsUeaXFJHx7AabwWwkWvtQiSL7vfkxYav",
+        amountSun: 1,
+      },
+    });
+    console.log("create_unsigned_transfer:");
+    console.log(JSON.stringify(unsignedTransfer, null, 2));
 
     const invalidTx = await client.callTool({
       name: "get_tx_status",

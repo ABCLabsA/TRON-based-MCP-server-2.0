@@ -17,12 +17,16 @@ export default function App() {
 
   const [address, setAddress] = useState("");
   const [txid, setTxid] = useState("");
+  const [amountTrx, setAmountTrx] = useState("");
   const [tools, setTools] = useState([]);
   const [status, setStatus] = useState("idle");
   const [summary, setSummary] = useState("");
   const [result, setResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [showHex, setShowHex] = useState(false);
+  const [walletAddress, setWalletAddress] = useState("");
+  const [walletStatus, setWalletStatus] = useState("disconnected");
+  const [unsignedTx, setUnsignedTx] = useState(null);
   const addressHint = "请先输入 Address";
   const txidHint = "请先输入 Txid";
   const disableAddressActions = status === "loading" || !address;
@@ -44,8 +48,6 @@ export default function App() {
     try {
       const data = await fetchJson("/tools");
       setTools(Array.isArray(data?.tools) ? data.tools : []);
-      console.log("base =", base);
-      console.log("env =", import.meta.env.VITE_API_BASE_URL);
     } catch {
       setTools([]);
     }
@@ -79,6 +81,112 @@ export default function App() {
     } catch (err) {
       setStatus("error");
       setErrorMsg(err.message || "Request failed");
+    }
+  }
+
+  async function connectTronLink() {
+    const tronLink = window?.tronLink;
+    const tronWeb = window?.tronWeb;
+    if (!tronLink || !tronWeb) {
+      setStatus("error");
+      setErrorMsg("TronLink not detected");
+      return;
+    }
+    try {
+      setWalletStatus("connecting");
+      await tronLink.request({ method: "tron_requestAccounts" });
+      const addr = tronWeb?.defaultAddress?.base58 || "";
+      setWalletAddress(addr);
+      setWalletStatus(addr ? "connected" : "disconnected");
+    } catch (err) {
+      setWalletStatus("disconnected");
+      setStatus("error");
+      setErrorMsg(err.message || "TronLink connection failed");
+    }
+  }
+
+  function toSun(amount) {
+    const tronWeb = window?.tronWeb;
+    if (tronWeb?.toSun) {
+      return tronWeb.toSun(amount);
+    }
+    const v = Number(amount);
+    if (!Number.isFinite(v)) return null;
+    return Math.round(v * 1e6);
+  }
+
+  async function createUnsignedTransfer() {
+    if (!walletAddress) {
+      setStatus("error");
+      setErrorMsg("Please connect TronLink first");
+      return;
+    }
+    if (!ADDRESS_RE.test(address)) {
+      setStatus("error");
+      setErrorMsg("Recipient address must start with T and length 30-40");
+      return;
+    }
+    const sun = toSun(amountTrx);
+    if (!sun || sun <= 0) {
+      setStatus("error");
+      setErrorMsg("Amount must be a positive number");
+      return;
+    }
+    resetState();
+    setStatus("loading");
+    try {
+      const data = await fetchJson("/call", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tool: "create_unsigned_transfer",
+          args: { from: walletAddress, to: address, amountSun: Number(sun) },
+        }),
+      });
+      setSummary(data?.summary?.zh || "");
+      setResult(data);
+      setUnsignedTx(data?.data?.transaction || data?.data || null);
+      setStatus(data?.ok ? "ok" : "error");
+      if (data?.ok === false) {
+        setErrorMsg(data?.error?.message || "Tool error");
+      }
+    } catch (err) {
+      setStatus("error");
+      setErrorMsg(err.message || "Request failed");
+    }
+  }
+
+  async function signAndBroadcast() {
+    const tronWeb = window?.tronWeb;
+    if (!tronWeb) {
+      setStatus("error");
+      setErrorMsg("TronWeb not available");
+      return;
+    }
+    const tx = unsignedTx || result?.data?.transaction || result?.data;
+    if (!tx) {
+      setStatus("error");
+      setErrorMsg("No unsigned transaction to sign");
+      return;
+    }
+    if (!tx?.raw_data || !Array.isArray(tx?.raw_data?.contract)) {
+      setStatus("error");
+      setErrorMsg("Invalid transaction payload: missing raw_data.contract");
+      return;
+    }
+    try {
+      setStatus("loading");
+      const signed = await tronWeb.trx.sign(tx);
+      const receipt = await tronWeb.trx.sendRawTransaction(signed);
+      setSummary("Broadcast completed");
+      setResult(receipt);
+      setStatus(receipt?.result ? "ok" : "error");
+      if (!receipt?.result) {
+        setErrorMsg(receipt?.message || "Broadcast failed");
+      }
+    } catch (err) {
+      setStatus("error");
+      setErrorMsg(err.message || "Signing failed");
     }
   }
 
@@ -118,6 +226,11 @@ export default function App() {
   const gas = result?.data?.gas;
   const hex = addressMeta?.addressHex || "";
   const shortHex = hex ? `${hex.slice(0, 8)}…${hex.slice(-6)}` : "-";
+  const aiExplain = addressMeta
+    ? `地址 ${addressMeta.base58Valid ? "通过" : "未通过"} Base58 校验，网络识别为 ${addressMeta.network || "未知"}。十六进制地址为 ${hex || "未知"}。风险提示：${addressMeta.riskHint || "无"}。`
+    : summary
+    ? `请求结果：${summary}`
+    : "";
 
   return (
     <div className="app">
@@ -125,7 +238,7 @@ export default function App() {
       <div className="orb orb-2" />
 
       <header className="hero">
-        <h1 className="hero-title">TRON MCP Demo Console</h1>
+        <h1 className="hero-title">TRON MCP Console</h1>
         <p className="hero-sub">
           A focused command surface for probing TRON network status, balances,
           and transaction health. Keep requests tight, inspect structured
@@ -172,6 +285,38 @@ export default function App() {
             value={txid}
             onChange={(e) => setTxid(e.target.value.trim())}
             placeholder="64 hex chars"
+          />
+        </div>
+      </section>
+
+      <section className="grid two" style={{ marginTop: 16 }}>
+        <div className="panel">
+          <h3 className="panel-title">TronLink Wallet</h3>
+          <div className="status-row">
+            <div className="pill">
+              <span className="label">Wallet</span>
+              <strong>{walletAddress || "Not connected"}</strong>
+            </div>
+            <button
+              onClick={connectTronLink}
+              className="btn tertiary"
+              disabled={walletStatus === "connecting"}
+            >
+              {walletStatus === "connecting" ? "Connecting..." : "Connect TronLink"}
+            </button>
+          </div>
+        </div>
+        <div className="panel">
+          <h3 className="panel-title">Transfer Amount (TRX)</h3>
+          <label className="label" htmlFor="amount-input">
+            Amount
+          </label>
+          <input
+            id="amount-input"
+            className="input"
+            value={amountTrx}
+            onChange={(e) => setAmountTrx(e.target.value)}
+            placeholder="1.5"
           />
         </div>
       </section>
@@ -228,6 +373,35 @@ export default function App() {
               Tx Status
             </button>
           </span>
+          <span
+            className="hint-wrap"
+            data-tooltip={showAddressHint ? addressHint : ""}
+          >
+            <button
+              onClick={createUnsignedTransfer}
+              disabled={!walletAddress || disableAddressActions}
+              className="btn secondary"
+              style={{
+                pointerEvents:
+                  !walletAddress || disableAddressActions ? "none" : "auto",
+              }}
+            >
+              Create Unsigned Transfer
+            </button>
+          </span>
+          <span
+            className="hint-wrap"
+            data-tooltip={!walletAddress ? "Connect TronLink first" : ""}
+          >
+            <button
+              onClick={signAndBroadcast}
+              disabled={!walletAddress}
+              className="btn primary"
+              style={{ pointerEvents: !walletAddress ? "none" : "auto" }}
+            >
+              Sign & Broadcast
+            </button>
+          </span>
         </div>
       </section>
 
@@ -272,6 +446,13 @@ export default function App() {
               <div className="value">{addressMeta.riskHint || "-"}</div>
             </div>
           </div>
+        </section>
+      )}
+
+      {aiExplain && (
+        <section className="panel" style={{ marginTop: 18 }}>
+          <h3 className="panel-title">AI Explanation</h3>
+          <div className="tools">{aiExplain}</div>
         </section>
       )}
 

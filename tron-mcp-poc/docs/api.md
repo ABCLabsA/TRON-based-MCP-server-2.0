@@ -79,6 +79,21 @@ curl http://localhost:8787/tools
 - `isUnsigned` / `hasSignature`
 - `warnings`：风险提示数组
 
+### create_unsigned_transfer
+```
+{
+  "tool": "create_unsigned_transfer",
+  "args": {
+    "from": "T...",
+    "to": "T...",
+    "amountSun": 1000000
+  }
+}
+```
+
+返回包含：
+- `transaction`：未签名交易对象（包含 `raw_data` 和 `raw_data_hex`）
+
 ## 校验规则
 - address：以 `T` 开头，长度 30~40，且 Base58Check 校验通过
 - txid：64 位 hex
@@ -89,6 +104,7 @@ curl http://localhost:8787/tools
 - `TOOL_NOT_FOUND`
 - `INVALID_ADDRESS`
 - `INVALID_TXID`
+- `INVALID_AMOUNT`
 - `INVALID_UNSIGNED_TX`
 - `INVALID_RAW_DATA_HEX`
 - `MISSING_RAW_DATA_HEX`

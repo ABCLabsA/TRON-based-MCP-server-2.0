@@ -104,3 +104,19 @@ export async function getAccountTransactions(address, options = {}) {
   const url = `${BASE}/v1/accounts/${encodeURIComponent(address)}/transactions?${params.toString()}`;
   return fetchJson(url, { headers: headers(), ...options });
 }
+
+export async function createTransferTransaction(from, to, amountSun, options = {}) {
+  const url = `${BASE}/wallet/createtransaction`;
+  const payload = {
+    owner_address: from,
+    to_address: to,
+    amount: Number(amountSun),
+    visible: true
+  };
+  return fetchJson(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...headers() },
+    body: JSON.stringify(payload),
+    ...options
+  });
+}

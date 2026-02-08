@@ -13,6 +13,7 @@ TRON Nile 测试网的 MCP 工具化示例，提供 HTTP Bridge + MCP stdio + We
 - `get_tx_status`：查询交易状态与确认时间
 - `get_account_profile`：账户画像（余额 + 最近交易统计）
 - `verify_unsigned_tx`：未签名交易校验（txid 派生、地址格式、过期检查）
+- `create_unsigned_transfer`：生成未签名 TRX 转账交易（配合 TronLink 签名/广播）
 - 地址安全快照：Base58 校验、地址 Hex、风险提示
 
 ## 技术栈

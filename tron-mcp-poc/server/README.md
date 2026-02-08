@@ -42,7 +42,7 @@ npm run mcp:test
 
 Expected output (example):
 ```
-Tools: get_network_status, get_usdt_balance, get_tx_status, get_account_profile, verify_unsigned_tx
+Tools: get_network_status, get_usdt_balance, get_tx_status, get_account_profile, verify_unsigned_tx, create_unsigned_transfer
 get_network_status:
 { ... ok: true ... }
 get_usdt_balance:
@@ -53,6 +53,8 @@ get_account_profile:
 { ... ok: true, includes activity summary ... }
 verify_unsigned_tx:
 { ... ok: true, includes valid/txid/warnings ... }
+create_unsigned_transfer:
+{ ... ok: true, includes raw_data/raw_data_hex ... }
 ```
 
 ## MCP HTTP Smoke Test
@@ -79,6 +81,7 @@ Restart Claude Desktop. The tools should appear as:
 - `get_tx_status`
 - `get_account_profile`
 - `verify_unsigned_tx`
+- `create_unsigned_transfer`
 
 ## API Keys (optional on Nile testnet)
 - `TRONGRID_API_KEY`: optional on Nile, recommended for better quota stability.

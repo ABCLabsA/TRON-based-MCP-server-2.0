@@ -3,6 +3,7 @@ import http from "node:http";
 import crypto from "node:crypto";
 import { getTransactionInfo } from "./providers/tronscan.js";
 import {
+  createTransferTransaction,
   getAccount,
   getAccountTransactions,
   getChainParameters,
@@ -124,6 +125,20 @@ const TOOLS = [
         rawDataHex: { type: "string" },
       },
       anyOf: [{ required: ["unsignedTx"] }, { required: ["rawDataHex"] }],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "create_unsigned_transfer",
+    description: "Create an unsigned TRX transfer transaction (Nile).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        from: { type: "string" },
+        to: { type: "string" },
+        amountSun: { type: "number" },
+      },
+      required: ["from", "to", "amountSun"],
       additionalProperties: false,
     },
   },
@@ -647,6 +662,67 @@ async function handleToolCall(tool, args) {
         "local-validation",
       ),
     };
+  }
+
+  if (tool === "create_unsigned_transfer") {
+    const { from, to, amountSun } = args ?? {};
+    if (!isValidAddress(from) || !isValidAddress(to)) {
+      return {
+        status: 400,
+        body: jsonError(
+          tool,
+          "INVALID_ADDRESS",
+          "from/to must be valid TRON addresses",
+        ),
+      };
+    }
+    const amount = Number(amountSun);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return {
+        status: 400,
+        body: jsonError(
+          tool,
+          "INVALID_AMOUNT",
+          "amountSun must be a positive number",
+        ),
+      };
+    }
+
+    try {
+      const tx = await createTransferTransaction(from, to, amount, {
+        includeMeta: true,
+      });
+      logUpstream(tx.meta);
+      const errMsg = tx?.data?.Error || tx?.data?.error || null;
+      if (errMsg) {
+        return {
+          status: 400,
+          body: jsonError(
+            tool,
+            "UPSTREAM_VALIDATE_ERROR",
+            String(errMsg),
+            {},
+            "trongrid",
+            "创建未签名交易失败（上游校验错误）",
+          ),
+        };
+      }
+      return {
+        status: 200,
+        body: jsonOk(
+          tool,
+          { transaction: tx.data },
+          "已生成未签名交易对象",
+          "trongrid",
+        ),
+      };
+    } catch (err) {
+      logUpstream(
+        { url: err.url, status: err.status, contentType: err.contentType },
+        err.bodySnippet,
+      );
+      return { status: 502, body: upstreamError(tool, err, "trongrid") };
+    }
   }
 
   if (tool === "get_account_profile") {

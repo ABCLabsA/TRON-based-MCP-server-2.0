@@ -67,3 +67,16 @@ Content-Type: application/json
     }
   }
 }
+
+### Call: create_unsigned_transfer
+POST http://localhost:8787/call
+Content-Type: application/json
+
+{
+  "tool": "create_unsigned_transfer",
+  "args": {
+    "from": "TB3Ttmeh5bgesBmMSqRSjpSmBsufKNgjAN",
+    "to": "TDsUeaXFJHx7AabwWwkWvtQiSL7vfkxYav",
+    "amountSun": 1000000
+  }
+}
