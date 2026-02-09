@@ -109,7 +109,7 @@ npm run mcp:stdio
 - 安全审计：`docs/security.md`
 - 商业计划：`docs/business.md`
 - 演示视频：5-10 分钟
-- Demo 说明：`docs/demo.md`
+- Demo Script：`docs/demo.md`
 
 ## 截图占位
 - Web Console 主界面（截图待补）
