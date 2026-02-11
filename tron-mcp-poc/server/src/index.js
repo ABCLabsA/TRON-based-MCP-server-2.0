@@ -11,6 +11,7 @@ import {
   getTrc20Balance,
   toHexAddress,
 } from "./providers/trongrid.js";
+import { quoteBySide, splitPlan as buildSplitPlan } from "./robinpump/curve.js";
 import { startMcpServer } from "./mcp.js";
 
 const DEFAULT_HTTP_PORT = 8787;
@@ -18,6 +19,10 @@ const PORT = Number(process.env.PORT || DEFAULT_HTTP_PORT);
 const MCP_HTTP_PORT = Number(process.env.MCP_HTTP_PORT || PORT);
 const USDT_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
 const SERVER_INFO = { name: "tron-mcp-server", version: "0.1.0" };
+const RP_PRESETS = {
+  A: { virtualBase: 100000, virtualToken: 500000, feeBps: 30 },
+  B: { virtualBase: 250000, virtualToken: 350000, feeBps: 50 },
+};
 
 function sendJson(res, status, body) {
   const data = JSON.stringify(body);
@@ -111,6 +116,56 @@ const TOOLS = [
       type: "object",
       properties: { address: { type: "string" } },
       required: ["address"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "rp_quote",
+    description: "Bonding-curve quote for buy/sell simulation.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        side: { type: "string", enum: ["buy", "sell"] },
+        amountIn: { type: "number", exclusiveMinimum: 0 },
+        curve: {
+          type: "object",
+          properties: {
+            virtualBase: { type: "number" },
+            virtualToken: { type: "number" },
+            feeBps: { type: "number" },
+          },
+          required: ["virtualBase", "virtualToken"],
+          additionalProperties: false,
+        },
+        preset: { type: "string", enum: ["A", "B"] },
+      },
+      required: ["side", "amountIn"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "rp_split_plan",
+    description: "Split-order planning for bonding-curve trades.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        side: { type: "string", enum: ["buy", "sell"] },
+        totalAmountIn: { type: "number", exclusiveMinimum: 0 },
+        parts: { type: "integer", minimum: 2, maximum: 50 },
+        maxSlippageBps: { type: "integer", minimum: 0, maximum: 5000 },
+        curve: {
+          type: "object",
+          properties: {
+            virtualBase: { type: "number" },
+            virtualToken: { type: "number" },
+            feeBps: { type: "number" },
+          },
+          required: ["virtualBase", "virtualToken"],
+          additionalProperties: false,
+        },
+        preset: { type: "string", enum: ["A", "B"] },
+      },
+      required: ["side", "totalAmountIn", "parts", "maxSlippageBps"],
       additionalProperties: false,
     },
   },
@@ -398,6 +453,12 @@ function summarizeTxs(list, address) {
   return { total, inbound, outbound, lastTimestamp };
 }
 
+function resolveCurveInput(curve, preset) {
+  if (curve && typeof curve === "object") return curve;
+  if (typeof preset === "string" && RP_PRESETS[preset]) return RP_PRESETS[preset];
+  return null;
+}
+
 async function handleToolCall(tool, args) {
   if (typeof tool !== "string") {
     return {
@@ -542,6 +603,102 @@ async function handleToolCall(tool, args) {
       };
     } catch (err) {
       return { status: 502, body: upstreamError(tool, err, "tronscan") };
+    }
+  }
+
+  if (tool === "rp_quote") {
+    const { side, amountIn, curve, preset } = args ?? {};
+    const curveInput = resolveCurveInput(curve, preset);
+    if (!curveInput) {
+      return {
+        status: 400,
+        body: jsonError(
+          tool,
+          "INVALID_CURVE",
+          "Provide curve or preset(A/B)",
+        ),
+      };
+    }
+    try {
+      const q = quoteBySide(curveInput, side, amountIn);
+      const summary = `Quote ${side}: in ${q.amountIn.toFixed(6)}, out ${q.amountOut.toFixed(6)}, impact ${q.priceImpactPct.toFixed(4)}%`;
+      return {
+        status: 200,
+        body: jsonOk(
+          tool,
+          {
+            summary,
+            key_facts: {
+              amountIn: q.amountIn,
+              amountOut: q.amountOut,
+              avgPrice: q.avgPrice,
+              spotPriceBefore: q.spotPriceBefore,
+              spotPriceAfter: q.spotPriceAfter,
+              priceImpactPct: q.priceImpactPct,
+            },
+            next_steps: ["Call rp_split_plan to compare single vs split."],
+            raw: q,
+          },
+          summary,
+          "local-robinpump",
+        ),
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: jsonError(tool, "INVALID_INPUT", err.message || "invalid input"),
+      };
+    }
+  }
+
+  if (tool === "rp_split_plan") {
+    const { side, totalAmountIn, parts, maxSlippageBps, curve, preset } = args ?? {};
+    const curveInput = resolveCurveInput(curve, preset);
+    if (!curveInput) {
+      return {
+        status: 400,
+        body: jsonError(
+          tool,
+          "INVALID_CURVE",
+          "Provide curve or preset(A/B)",
+        ),
+      };
+    }
+    try {
+      const planResult = buildSplitPlan(curveInput, side, totalAmountIn, parts);
+      const maxImpactPct = Number(maxSlippageBps) / 100;
+      const maxTrancheImpact = Math.max(
+        ...planResult.plan.map((x) => Math.abs(x.expectedImpactPct)),
+      );
+      const summary = `Split ${parts}: singleImpact=${planResult.single.priceImpactPct.toFixed(4)}%, splitAvgImpact=${planResult.splitAvgImpactPct.toFixed(4)}%`;
+      return {
+        status: 200,
+        body: jsonOk(
+          tool,
+          {
+            summary,
+            plan: planResult.plan,
+            comparison: {
+              singleTradeImpactPct: planResult.single.priceImpactPct,
+              splitAvgImpactPct: planResult.splitAvgImpactPct,
+              splitTotalOut: planResult.splitTotalOut,
+              singleTotalOut: planResult.single.amountOut,
+            },
+            next_steps: maxTrancheImpact > maxImpactPct
+              ? [
+                  "Current split exceeds maxSlippageBps; increase parts or reduce totalAmountIn.",
+                ]
+              : ["Plan is within maxSlippageBps threshold."],
+          },
+          summary,
+          "local-robinpump",
+        ),
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: jsonError(tool, "INVALID_INPUT", err.message || "invalid input"),
+      };
     }
   }
 
