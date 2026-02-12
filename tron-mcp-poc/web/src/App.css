@@ -348,3 +348,61 @@ body {
     grid-template-columns: 1fr;
   }
 }
+.rp-presets {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.rp-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.rp-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rp-fields {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+.table-wrap {
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.rp-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  font-size: 13px;
+}
+
+.rp-table th,
+.rp-table td {
+  border-bottom: 1px solid var(--border);
+  padding: 8px 10px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.rp-table thead th {
+  background: #f8f3ec;
+}
+
+@media (max-width: 900px) {
+  .rp-grid {
+    grid-template-columns: 1fr;
+  }
+}

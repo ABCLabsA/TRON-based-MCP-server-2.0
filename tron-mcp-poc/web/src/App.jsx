@@ -4,6 +4,25 @@ import "./App.css";
 const ADDRESS_RE = /^T.{29,39}$/;
 const TXID_RE = /^[0-9a-fA-F]{64}$/;
 
+const RP_PRESETS = {
+  A: {
+    label: "Preset A (Low Liquidity)",
+    side: "buy",
+    totalAmountIn: 100,
+    parts: 4,
+    maxSlippageBps: 300,
+    curve: { virtualBase: 120000, virtualToken: 6000000, feeBps: 30 }
+  },
+  B: {
+    label: "Preset B (Deeper Liquidity)",
+    side: "buy",
+    totalAmountIn: 100,
+    parts: 4,
+    maxSlippageBps: 200,
+    curve: { virtualBase: 200000, virtualToken: 4000000, feeBps: 50 }
+  }
+};
+
 function formatToolName(name) {
   return name.replace(/_/g, " ");
 }
@@ -27,6 +46,16 @@ export default function App() {
   const [walletAddress, setWalletAddress] = useState("");
   const [walletStatus, setWalletStatus] = useState("disconnected");
   const [unsignedTx, setUnsignedTx] = useState(null);
+
+  const [rpPreset, setRpPreset] = useState("A");
+  const [rpQuoteSide, setRpQuoteSide] = useState(RP_PRESETS.A.side);
+  const [rpQuoteAmountIn, setRpQuoteAmountIn] = useState(String(RP_PRESETS.A.totalAmountIn));
+  const [rpSplitSide, setRpSplitSide] = useState(RP_PRESETS.A.side);
+  const [rpSplitTotalAmountIn, setRpSplitTotalAmountIn] = useState(String(RP_PRESETS.A.totalAmountIn));
+  const [rpSplitParts, setRpSplitParts] = useState(String(RP_PRESETS.A.parts));
+  const [rpSplitMaxSlippageBps, setRpSplitMaxSlippageBps] = useState(String(RP_PRESETS.A.maxSlippageBps));
+  const [rpCurve, setRpCurve] = useState({ ...RP_PRESETS.A.curve });
+
   const addressHint = "请先输入 Address";
   const txidHint = "请先输入 Txid";
   const disableAddressActions = status === "loading" || !address;
@@ -190,6 +219,73 @@ export default function App() {
     }
   }
 
+  function applyRpPreset(name) {
+    const preset = RP_PRESETS[name];
+    if (!preset) return;
+    setRpPreset(name);
+    setRpQuoteSide(preset.side);
+    setRpQuoteAmountIn(String(preset.totalAmountIn));
+    setRpSplitSide(preset.side);
+    setRpSplitTotalAmountIn(String(preset.totalAmountIn));
+    setRpSplitParts(String(preset.parts));
+    setRpSplitMaxSlippageBps(String(preset.maxSlippageBps));
+    setRpCurve({ ...preset.curve });
+  }
+
+  function toCurvePayload() {
+    return {
+      virtualBase: Number(rpCurve.virtualBase),
+      virtualToken: Number(rpCurve.virtualToken),
+      feeBps: Number(rpCurve.feeBps || 0),
+    };
+  }
+
+  function onRpQuote() {
+    const amountIn = Number(rpQuoteAmountIn);
+    if (!Number.isFinite(amountIn) || amountIn <= 0) {
+      setStatus("error");
+      setErrorMsg("Quote amount must be > 0");
+      return;
+    }
+    callTool("rp_quote", {
+      preset: rpPreset,
+      side: rpQuoteSide,
+      amountIn,
+      curve: toCurvePayload(),
+    });
+  }
+
+  function onRpSplitPlan() {
+    const totalAmountIn = Number(rpSplitTotalAmountIn);
+    const parts = Number(rpSplitParts);
+    const maxSlippageBps = Number(rpSplitMaxSlippageBps);
+
+    if (!Number.isFinite(totalAmountIn) || totalAmountIn <= 0) {
+      setStatus("error");
+      setErrorMsg("Split total amount must be > 0");
+      return;
+    }
+    if (!Number.isInteger(parts) || parts < 2 || parts > 50) {
+      setStatus("error");
+      setErrorMsg("parts must be an integer in [2, 50]");
+      return;
+    }
+    if (!Number.isInteger(maxSlippageBps) || maxSlippageBps < 0 || maxSlippageBps > 5000) {
+      setStatus("error");
+      setErrorMsg("maxSlippageBps must be an integer in [0, 5000]");
+      return;
+    }
+
+    callTool("rp_split_plan", {
+      preset: rpPreset,
+      side: rpSplitSide,
+      totalAmountIn,
+      parts,
+      maxSlippageBps,
+      curve: toCurvePayload(),
+    });
+  }
+
   function onNetworkStatus() {
     callTool("get_network_status", {});
   }
@@ -231,6 +327,12 @@ export default function App() {
     : summary
     ? `请求结果：${summary}`
     : "";
+
+  const rpKeyFacts = result?.data?.key_facts;
+  const rpPlan = Array.isArray(result?.data?.plan) ? result.data.plan : [];
+  const rpComparison = result?.data?.comparison;
+  const isRpQuoteResult = result?.ok && result?.tool === "rp_quote";
+  const isRpSplitResult = result?.ok && result?.tool === "rp_split_plan";
 
   return (
     <div className="app">
@@ -406,10 +508,177 @@ export default function App() {
       </section>
 
       <section className="panel" style={{ marginTop: 18 }}>
+        <div className="tools-header">
+          <div>
+            <h3 className="panel-title">RobinPump Copilot</h3>
+            <p className="tools-sub">选择预设后可一键演示 quote 与拆单对比。</p>
+          </div>
+          <div className="rp-presets">
+            <button
+              className={`btn ${rpPreset === "A" ? "primary" : "ghost"}`}
+              onClick={() => applyRpPreset("A")}
+            >
+              {RP_PRESETS.A.label}
+            </button>
+            <button
+              className={`btn ${rpPreset === "B" ? "primary" : "ghost"}`}
+              onClick={() => applyRpPreset("B")}
+            >
+              {RP_PRESETS.B.label}
+            </button>
+          </div>
+        </div>
+
+        <div className="rp-grid" style={{ marginTop: 12 }}>
+          <div className="rp-card">
+            <h4 className="panel-title">Quote</h4>
+            <div className="rp-fields">
+              <label className="label">Side</label>
+              <select
+                className="input"
+                value={rpQuoteSide}
+                onChange={(e) => setRpQuoteSide(e.target.value)}
+              >
+                <option value="buy">buy</option>
+                <option value="sell">sell</option>
+              </select>
+
+              <label className="label">Amount In</label>
+              <input
+                className="input"
+                value={rpQuoteAmountIn}
+                onChange={(e) => setRpQuoteAmountIn(e.target.value)}
+                placeholder="100"
+              />
+
+              <label className="label">virtualBase</label>
+              <input
+                className="input"
+                value={rpCurve.virtualBase}
+                onChange={(e) =>
+                  setRpCurve((prev) => ({ ...prev, virtualBase: e.target.value }))
+                }
+              />
+
+              <label className="label">virtualToken</label>
+              <input
+                className="input"
+                value={rpCurve.virtualToken}
+                onChange={(e) =>
+                  setRpCurve((prev) => ({ ...prev, virtualToken: e.target.value }))
+                }
+              />
+
+              <label className="label">feeBps</label>
+              <input
+                className="input"
+                value={rpCurve.feeBps}
+                onChange={(e) =>
+                  setRpCurve((prev) => ({ ...prev, feeBps: e.target.value }))
+                }
+              />
+            </div>
+            <button className="btn primary" onClick={onRpQuote}>Run rp_quote</button>
+          </div>
+
+          <div className="rp-card">
+            <h4 className="panel-title">Split Plan</h4>
+            <div className="rp-fields">
+              <label className="label">Side</label>
+              <select
+                className="input"
+                value={rpSplitSide}
+                onChange={(e) => setRpSplitSide(e.target.value)}
+              >
+                <option value="buy">buy</option>
+                <option value="sell">sell</option>
+              </select>
+
+              <label className="label">Total Amount</label>
+              <input
+                className="input"
+                value={rpSplitTotalAmountIn}
+                onChange={(e) => setRpSplitTotalAmountIn(e.target.value)}
+                placeholder="100"
+              />
+
+              <label className="label">Parts (2-50)</label>
+              <input
+                className="input"
+                value={rpSplitParts}
+                onChange={(e) => setRpSplitParts(e.target.value)}
+              />
+
+              <label className="label">Max Slippage (bps)</label>
+              <input
+                className="input"
+                value={rpSplitMaxSlippageBps}
+                onChange={(e) => setRpSplitMaxSlippageBps(e.target.value)}
+              />
+            </div>
+            <button className="btn secondary" onClick={onRpSplitPlan}>Run rp_split_plan</button>
+          </div>
+        </div>
+      </section>
+
+      <section className="panel" style={{ marginTop: 18 }}>
         <h3 className="panel-title">Response</h3>
         {status === "loading" && <div className="loading">Running request</div>}
         {errorMsg && <div className="error">Error: {errorMsg}</div>}
         {summary && <div className="summary">{summary}</div>}
+
+        {isRpQuoteResult && rpKeyFacts && (
+          <div className="rp-output" style={{ marginTop: 10 }}>
+            <h4 className="panel-title">Key Facts</h4>
+            <div className="safety-grid">
+              <div className="safety-card"><div className="label">amountIn</div><div className="value mono">{rpKeyFacts.amountIn}</div></div>
+              <div className="safety-card"><div className="label">amountOut</div><div className="value mono">{rpKeyFacts.amountOut}</div></div>
+              <div className="safety-card"><div className="label">avgPrice</div><div className="value mono">{rpKeyFacts.avgPrice}</div></div>
+              <div className="safety-card"><div className="label">priceImpactPct</div><div className="value mono">{rpKeyFacts.priceImpactPct}%</div></div>
+            </div>
+          </div>
+        )}
+
+        {isRpSplitResult && (
+          <div className="rp-output" style={{ marginTop: 10 }}>
+            {rpComparison && (
+              <div className="safety-grid">
+                <div className="safety-card"><div className="label">singleTradeImpactPct</div><div className="value mono">{rpComparison.singleTradeImpactPct}%</div></div>
+                <div className="safety-card"><div className="label">splitAvgImpactPct</div><div className="value mono">{rpComparison.splitAvgImpactPct}%</div></div>
+                <div className="safety-card"><div className="label">singleTotalOut</div><div className="value mono">{rpComparison.singleTotalOut}</div></div>
+                <div className="safety-card"><div className="label">splitTotalOut</div><div className="value mono">{rpComparison.splitTotalOut}</div></div>
+              </div>
+            )}
+            {rpPlan.length > 0 && (
+              <div style={{ marginTop: 10 }}>
+                <h4 className="panel-title">Split Plan</h4>
+                <div className="table-wrap">
+                  <table className="rp-table">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>amountIn</th>
+                        <th>expectedOut</th>
+                        <th>expectedImpactPct</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rpPlan.map((row) => (
+                        <tr key={row.index}>
+                          <td>{row.index}</td>
+                          <td>{row.amountIn}</td>
+                          <td>{row.expectedOut}</td>
+                          <td>{row.expectedImpactPct}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <pre className="result">
           {result ? JSON.stringify(result, null, 2) : "(no result)"}
         </pre>
